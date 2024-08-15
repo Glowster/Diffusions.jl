@@ -98,3 +98,26 @@ function standardloss(
     xx = stack([getindex.(parent(x), i) for i in 1:K], dims = 1)
     return scaledloss(loss(x̂, xx), maskedindices(x), (t -> scaler(p, t)).(t)) / ((K - 1) / K) * 1.44f0
 end
+
+
+function my_kl_divergence(p, q; epsilon=1e-10)
+
+    p = p ./ sum(p, dims=1)
+    q = q ./ sum(q, dims=1)
+    
+    p = p .+ epsilon
+    q = q .+ epsilon
+
+    return sum(p .* (log.(p) .- log.(q)), dims=1)
+end
+
+function standardloss(
+    p::PiQDiffusion,
+    s::Union{Real},
+    t::Union{Real},
+    x̂, x, x_t;
+    scaler=defaultscaler
+)
+    return my_kl_divergence(_endpoint_conditioned_distrubution(p, s, t, x, x_t)
+                            , _endpoint_conditioned_distrubution(p, s, t, x̂, x_t))   #sum((_endpoint_conditioned_distrubution(p, s, t, x, x_t) - _endpoint_conditioned_distrubution(p, s, t, x̂, x_t)).^2, dims=1)
+end

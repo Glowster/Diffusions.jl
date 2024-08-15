@@ -26,6 +26,12 @@ sampleforward(
     x::NTuple{N,AbstractArray}
 ) where {N} = sampleforward.(rng, process, (t,), x)
 
+function sampleforward(rng::AbstractRNG, process::PiQDiffusion, t::Real, x::AbstractArray)
+    x = copy(x)
+    x .= _sampleforward(rng, process, t, x)
+    return x
+end
+
 function sampleforward(rng::AbstractRNG, process::Process, t::Real, x::AbstractArray)
     x = copy(x)
     maskedvec(x) .= _sampleforward(rng, process, t, maskedvec(x))
@@ -61,7 +67,12 @@ function samplebackward(rng::AbstractRNG, guess, process, timesteps, x; tracker=
     while i > firstindex(timesteps)
         s = timesteps[i-1]
         x_0 = guess(x, t)
+        #println("sbA")
+        #println(typeof(x_0), typeof(x))
+
         x = endpoint_conditioned_sample(rng, process, s, t, x_0, x)
+        #println("sbB")
+
         track!(tracker, s, x, x_0)
         t = s
         i -= 1
@@ -69,7 +80,18 @@ function samplebackward(rng::AbstractRNG, guess, process, timesteps, x; tracker=
     return x
 end
 
+function endpoint_conditioned_sample(rng::AbstractRNG, process::PiQDiffusion, s::Real, t::Real, x_0::AbstractArray, x_t::AbstractArray)
+    # if x_t isa MaskedArray
+    #     # x_0 inherits masked elements from x_t
+    #     x_0 = MaskedArray(x_0, x_t.indices)
+    # end
+    x = copy(x_t)
+    x .= _endpoint_conditioned_sample(rng, process, s, t, x_0, x_t)
+    return x
+end
+
 function endpoint_conditioned_sample(rng::AbstractRNG, process::Process, s::Real, t::Real, x_0::AbstractArray, x_t::AbstractArray)
+    #println("f1A")
     if x_t isa MaskedArray
         # x_0 inherits masked elements from x_t
         x_0 = MaskedArray(x_0, x_t.indices)
@@ -86,6 +108,7 @@ endpoint_conditioned_sample(rng::AbstractRNG, process, s::Real, t::Real, x_0, x_
 endpoint_conditioned_sample(P::Process, s::Real, t::Real, x_0, x_t) = endpoint_conditioned_sample(Random.default_rng(), P, s, t, x_0, x_t)
 
 function checktimesteps(timesteps)
+    #println("INTE HÖR SNÄLKLA")
     length(timesteps) ≥ 2 || throw(ArgumentError("timesteps must have at least two timesteps"))
     issorted(timesteps) || throw(ArgumentError("timesteps must be increasing"))
     all(>(0), timesteps) || throw(ArgumentError("all timesteps must be positive"))

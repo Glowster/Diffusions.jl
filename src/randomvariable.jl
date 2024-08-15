@@ -20,7 +20,16 @@ end
 
 struct CategoricalVariables{K, T}
     p::Array{SVector{K, T}}
+    seqs::Int64
 end
+
+function CategoricalVariables(p::Vector{SVector{K, T}}) where {K, T}
+    CategoricalVariables{K, T}(p, 0)
+end  
+
+function CategoricalVariables(p::Vector{SVector{K, T}}, seqs::Int64) where {K, T}
+    CategoricalVariables{K, T}(p, seqs)
+end  
 
 ncategories(::CategoricalVariables{K}) where K = K
 
